@@ -1,0 +1,74 @@
+---
+- name: "{{ prefix | default(target) }} : Create project folder => {{ app.path }}"
+  ansible.builtin.file:
+    path: "{{ app.path }}"
+    owner: "{{ ansible_user }}"
+    state: directory
+    mode: 0755
+  become: yes
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: "{{ prefix | default(target) }} : Create volumes"
+  ansible.builtin.file:
+    path: "{{ app.path }}/{{ item }}"
+    owner: "{{ ansible_user }}"
+    state: directory
+    mode: 0755
+  loop: "{{ range(cluster.start_port, cluster.end_port) | list }}"
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: "{{ prefix | default(target) }} : Create configuration files"
+  ansible.builtin.template:
+    src: "{{ app.config }}"
+    dest: "{{ app.path }}/{{ item }}/redis.conf"
+    owner: "{{ ansible_user }}"
+    mode: 0755
+  loop: "{{ range(cluster.start_port, cluster.end_port) | list }}"
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: "{{ prefix | default(target) }} : Create compose file"
+  ansible.builtin.template:
+    src: "{{ docker.compose_file }}"
+    dest: "{{ app.path }}/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    mode: 0644
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: "{{ prefix | default(target) }} : Create images from compose file"
+  docker_compose:
+    project_src: "{{ app.path }}"
+    state: absent
+    build: yes
+  become: yes
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: "{{ prefix | default(target) }} : Start some containers"
+  docker_container:
+    name: "redis_{{ item }}"
+    image: redis:6.0-alpine3.15
+    network_mode: host
+    state: started
+    command: "redis-server /redis/redis.conf"
+    volumes:
+      - "{{ app.path }}/{{ item }}:/redis"
+  become: yes
+  loop: "{{ range(cluster.start_port, cluster.end_port) | list }}"
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: "{{ prefix | default(target) }} : Generate part of command"
+  set_fact:
+    part_command: "{{ range(cluster.start_port, cluster.end_port) | list | join(cluster.address) }}"
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: "{{ prefix | default(target) }} : Create cluster"
+  community.docker.docker_container_exec:
+    container: "redis_{{ cluster.master }}"
+    command: "redis-cli --cluster create{{ cluster.address + part_command }} --cluster-yes --cluster-replicas 1"
+  register: result
+  become: yes
+  run_once: "{{ single_host_execution | bool }}"
+
+- name: Print result of creating cluster
+  debug:
+    var: result.stdout_lines
+...

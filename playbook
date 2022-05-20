@@ -1,0 +1,13 @@
+---
+- hosts: staging
+  vars_files:
+    - secrets.yml
+  roles:
+    - name: Redis
+      role: redis.cluster
+      target: Redis
+      extra_vars:
+        enable: yes
+        files:
+          - main.yml
+...

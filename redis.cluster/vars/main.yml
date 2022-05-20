@@ -1,0 +1,18 @@
+---
+app:
+  name: Redis
+  config: redis.conf.j2
+  path: /docker/apps/redis
+
+cluster:
+  address: " 127.0.0.1:"
+  start_port: 7000
+  end_port: 7006
+  master: 7000
+
+docker:
+  compose_file: "{{ redis_compose_file | default('docker-compose.yml.j2') }}"
+  address: "{{ redis_address | default('redis.core.docker') }}"
+  network: "{{ redis_network | default('core-net') }}"
+  mem_limit: "{{ redis_mem_limit | default(None) }}"
+  tag: "{{ redis_version | default('6.0') }}"

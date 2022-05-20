@@ -1,0 +1,20 @@
+---
+single_host_execution: no
+
+app:
+  name: Redis
+  path: /docker/apps/redis
+
+  folders: []
+  volumes: []
+  files: []
+
+target: .
+
+docker:
+  compose_file: docker-compose.yml.j2
+
+extra_vars:
+  enable: no
+  files: []
+...

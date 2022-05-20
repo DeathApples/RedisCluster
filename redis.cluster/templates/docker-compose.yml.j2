@@ -1,0 +1,19 @@
+version: "2.4"
+
+services:
+  redis:
+    restart: always
+    image: redis:{{ docker.tag }}-alpine3.15
+    {% if docker.mem_limit -%}
+    mem_limit: {{ docker.mem_limit }}
+    {% endif -%}
+    networks:
+      default:
+        aliases:
+          - {{ docker.address }}
+    sysctls:
+      net.core.somaxconn: 511
+  
+networks:
+  default:
+    name: {{ docker.network }}
